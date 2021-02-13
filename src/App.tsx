@@ -11,6 +11,7 @@ import axios from 'axios';
 
 const REFUNDER_ADDRESS = "0x2d8cE02dd1644A9238e08430CaeA15a609503140";
 const WETH_ADDRESS = "0xc778417E063141139Fce010982780140Aa0cD5Ab";
+const MIN_FUNDS = ethers.utils.parseEther("0.001")
 
 const Erc20 = [
   "function approve(address _spender, uint256 _value) public returns (bool success)",
@@ -182,14 +183,14 @@ const App: React.FC = () => {
     }
   }, [connectedSafe])
 
-  console.log(txs)
+  const availableGasFunds = gasTankState.level.lte(gasTankState.capacity) ? gasTankState.level : gasTankState.capacity
   return (
     <div className="App">
       <header className="App-header">
         <p>
           Next txs for {connectedAddress} <Button size="md" color="primary" onClick={loadInfo}>Reload</Button><br /><br />
-          You pay your transaction fees with WETH from your Safe. For that you need to set an allowance for {REFUNDER_ADDRESS} for WETH ({WETH_ADDRESS})<br /><br />
-          Max gas fees available: {ethers.utils.formatEther(gasTankState.level.lte(gasTankState.capacity) ? gasTankState.level : gasTankState.capacity)} WETH<br /><br />
+          You pay your transaction fees with WETH from your Safe. For that you need to set an allowance for {REFUNDER_ADDRESS} for WETH ({WETH_ADDRESS}). At least 0.001 WETH for gas fees need to be available to use this Safe App!<br /><br />
+          Max gas fees available: {ethers.utils.formatEther(availableGasFunds)} WETH<br /><br />
           <TextField label="Amount to wrap" value={wethAmount} onChange={(e) => setWethAmount(e.target.value)}/><br />
           {ethers.utils.formatEther(gasTankState.level)} WETH <Button size="md" color="primary" onClick={() => wrapEth(wethAmount)}>Wrap Eth</Button><br />
           <TextField label="Max funds to allow for paying gas" value={gasAllowance} onChange={(e) => setGasAllowance(e.target.value) } /><br />
@@ -199,7 +200,7 @@ const App: React.FC = () => {
           Safe Tx Hash: {tx.safeTxHash}<br />
           To: {tx.to}<br />
           Nonce: {tx.nonce}<br />
-          <Button size="md" color="primary" onClick={() => relayTx(tx)} disabled={confirmationsRequired > tx.confirmations.length || tx.nonce <= lastExecutedNonce}>Relay</Button>
+          <Button size="md" color="primary" onClick={() => relayTx(tx)} disabled={confirmationsRequired > tx.confirmations.length || tx.nonce <= lastExecutedNonce || availableGasFunds.lt(MIN_FUNDS)}>Relay</Button>
           <hr />
         </div>)}
       </header>
