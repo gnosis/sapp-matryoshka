@@ -2,7 +2,6 @@
   "short_name": "Matry",
   "name": "Matryoshka",
   "description": "Matryoshka - Safe Transaction Relayer",
-  "url": "https://gnosis-safe.io",
   "iconPath": "logo512.png",
   "icons": [
     {
