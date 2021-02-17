@@ -1,90 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { BigNumber, ethers } from 'ethers';
-import { useSafeAppsSDK } from '@gnosis.pm/safe-apps-react-sdk';
 import { SafeAppsSdkProvider } from '@gnosis.pm/safe-apps-ethers-provider';
-import './App.css';
-import {
-  Button,
-  TextField
-} from '@gnosis.pm/safe-react-components';
+import { useSafeAppsSDK } from '@gnosis.pm/safe-apps-react-sdk';
+import { Button, TextField } from '@gnosis.pm/safe-react-components';
 import axios from 'axios';
-
-const REFUNDER_ADDRESS = "0x2d8cE02dd1644A9238e08430CaeA15a609503140";
-const WETH_ADDRESS = "0xc778417E063141139Fce010982780140Aa0cD5Ab";
-const MIN_FUNDS = ethers.utils.parseEther("0.001")
-
-const Erc20 = [
-  "function approve(address _spender, uint256 _value) public returns (bool success)",
-  "function allowance(address _owner, address _spender) public view returns (uint256 remaining)",
-  "function balanceOf(address _owner) public view returns (uint256 balance)",
-  "event Approval(address indexed _owner, address indexed _spender, uint256 _value)"
-];
-
-const Erc20Interface = new ethers.utils.Interface(Erc20)
-
-interface Page<T> {
-  results: T[]
-}
-
-interface SafeInfo {
-  nonce: number,
-  threshold: number
-}
-
-interface SafeConfirmation {
-    owner: string,
-    signature: string
-}
-
-interface SafeTransaction {
-    safeTxHash: string,
-    to: string,
-    value: string,
-    data: string,
-    operation: number,
-    gasToken: string,
-    safeTxGas: number,
-    baseGas: number,
-    gasPrice: string,
-    refundReceiver: string,
-    nonce: number,
-    confirmationsRequired: number,
-    confirmations: SafeConfirmation[]
-}
+import { BigNumber, ethers } from 'ethers';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { encodeSafeTransaction, SafeTransaction } from '../logic/safeTransactions';
+import { getNextTxsFromService } from '../logic/serviceRequests';
+import { MIN_FUNDS, REFUNDER_ADDRESS, SERVICE_URL, WETH_ADDRESS } from '../utils/constants';
+import { Erc20, Erc20Interface } from '../utils/contracts';
 
 interface GasTank {
   capacity: BigNumber,
   level: BigNumber
-}
-
-const getNextTxsFromService = async (safe: string, network: string): Promise<{ threshold: number, txs: SafeTransaction[] } > => {
-  const safeInfoUrl = `https://safe-transaction.${network}.gnosis.io/api/v1/safes/${safe}/`
-  const infoResp = await axios.get<SafeInfo>(safeInfoUrl)
-  const safeTxsUrl = `https://safe-transaction.${network}.gnosis.io/api/v1/safes/${safe}/multisig-transactions/?nonce=${infoResp.data.nonce}`
-  const txsResp = await axios.get<Page<SafeTransaction>>(safeTxsUrl)
-  return {
-    threshold: infoResp.data.threshold,
-    txs: txsResp.data.results
-  }
-}
-
-const buildSignaturesBytes = (confirmations: SafeConfirmation[]): string => {
-    return confirmations.sort((left, right) => left.owner.toLowerCase().localeCompare(right.owner.toLowerCase()))
-        .reduce((acc, val) => acc + val.signature.slice(2), "0x")
-}
-
-const encodeSafeTransaction = (safe: string, safeTx: SafeTransaction): { to: string, method: string, methodData: string } => {
-    console.log({
-        safeTx
-    })
-    const safeInterface = new ethers.utils.Interface(['function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signatures)'])
-    const encodedCall = safeInterface.encodeFunctionData('execTransaction', [safeTx.to, safeTx.value, safeTx.data || "0x", safeTx.operation, safeTx.safeTxGas, safeTx.baseGas, safeTx.gasPrice, safeTx.gasToken, safeTx.refundReceiver, buildSignaturesBytes(safeTx.confirmations)])
-    const methodData = "0x" + encodedCall.slice(10)
-    return {
-        to: safe,
-        method: encodedCall.slice(0, 10),
-        methodData
-    }
 }
 
 const App: React.FC = () => {
@@ -111,7 +38,7 @@ const App: React.FC = () => {
       setConnectedAddress(safe.safeAddress)
       const network = safe.network.toLowerCase()
       if (network !== "rinkeby") throw Error(`Unsupported network ${network}`)
-      const { threshold, txs} = await getNextTxsFromService(safe.safeAddress, network)
+      const { threshold, txs} = await getNextTxsFromService(network, safe.safeAddress)
       setTxs(txs)
       setConfirmationsRequied(threshold)
     } catch (e) {
@@ -174,8 +101,7 @@ const App: React.FC = () => {
       setLastExecutedNonce(tx.nonce)
       const safe = await connectedSafe()
       const executeData = encodeSafeTransaction(safe.safeAddress, tx)
-      const executeUrl = `https://yacate-relay-rinkeby.herokuapp.com/v1/transactions/execute/generic`
-      const txsResp = await axios.post<String>(executeUrl, executeData)
+      const txsResp = await axios.post<String>(SERVICE_URL, executeData)
       console.log(txsResp)
     } catch (e) {
       setLastExecutedNonce(tx.nonce - 1)

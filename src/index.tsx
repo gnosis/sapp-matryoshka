@@ -1,18 +1,18 @@
+import SafeProvider from '@gnosis.pm/safe-apps-react-sdk';
+import { theme } from '@gnosis.pm/safe-react-components';
 import React from 'react';
 import ReactDOM from 'react-dom';
-import './index.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
 import { ThemeProvider } from 'styled-components';
-import { theme } from '@gnosis.pm/safe-react-components';
-import SafeProvider from '@gnosis.pm/safe-apps-react-sdk';
+import App from './components/App';
+import './index.css';
+import reportWebVitals from './reportWebVitals';
 
 ReactDOM.render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
-    <SafeProvider>
-      <App />
-    </SafeProvider>
+      <SafeProvider>
+        <App />
+      </SafeProvider>
     </ThemeProvider>
   </React.StrictMode>,
   document.getElementById('root')
