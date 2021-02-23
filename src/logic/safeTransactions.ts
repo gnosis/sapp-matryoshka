@@ -1,4 +1,4 @@
-import { ethers } from 'ethers'
+import { safeInterface } from '../utils/contracts'
 
 interface SafeConfirmation {
   owner: string
@@ -21,6 +21,12 @@ export interface SafeTransaction {
   confirmations: SafeConfirmation[]
 }
 
+interface EncodedTransaction {
+  to: string
+  method: string
+  data: string
+}
+
 const buildSignaturesBytes = (confirmations: SafeConfirmation[]): string => {
   return confirmations
     .sort((left, right) => left.owner.toLowerCase().localeCompare(right.owner.toLowerCase()))
@@ -30,11 +36,8 @@ const buildSignaturesBytes = (confirmations: SafeConfirmation[]): string => {
 export const encodeSafeTransaction = (
   safe: string,
   safeTx: SafeTransaction
-): { to: string; method: string; methodData: string } => {
+): EncodedTransaction => {
   console.log({ safeTx })
-  const safeInterface = new ethers.utils.Interface([
-    'function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signatures)'
-  ])
   const encodedCall = safeInterface.encodeFunctionData('execTransaction', [
     safeTx.to,
     safeTx.value,
@@ -48,9 +51,10 @@ export const encodeSafeTransaction = (
     buildSignaturesBytes(safeTx.confirmations)
   ])
   const methodData = '0x' + encodedCall.slice(10)
-  return {
+  const encodedTransaction: EncodedTransaction = {
     to: safe,
     method: encodedCall.slice(0, 10),
-    methodData
+    data: methodData
   }
+  return encodedTransaction
 }

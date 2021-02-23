@@ -8,3 +8,7 @@ export const Erc20 = [
 ]
 
 export const Erc20Interface = new ethers.utils.Interface(Erc20)
+
+export const safeInterface = new ethers.utils.Interface([
+  'function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signatures)'
+])

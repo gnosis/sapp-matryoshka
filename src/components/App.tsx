@@ -1,15 +1,27 @@
 import { SafeAppsSdkProvider } from '@gnosis.pm/safe-apps-ethers-provider'
 import { useSafeAppsSDK } from '@gnosis.pm/safe-apps-react-sdk'
-import { Button, TextField } from '@gnosis.pm/safe-react-components'
+import { Button } from '@gnosis.pm/safe-react-components'
 import axios from 'axios'
 import { BigNumber, ethers } from 'ethers'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import styled from 'styled-components'
 import { encodeSafeTransaction, SafeTransaction } from '../logic/safeTransactions'
 import { getNextTxsFromService } from '../logic/serviceRequests'
-import { MIN_FUNDS, REFUNDER_ADDRESS, SERVICE_URL, WETH_ADDRESS } from '../utils/constants'
+import { REFUNDER_ADDRESS, SERVICE_URL, WETH_ADDRESS } from '../utils/constants'
 import { Erc20, Erc20Interface } from '../utils/contracts'
+import Settings from './Settings'
+import Transactions from './Transactions'
 
-interface GasTank {
+const Container = styled.div`
+  border-top: 2px solid #eee;
+  margin-top: 30px;
+  display: flex;
+  @media screen and (max-width: 930px) {
+    flex-direction: column-reverse;
+  }
+`
+
+export interface GasTank {
   capacity: BigNumber
   level: BigNumber
 }
@@ -30,11 +42,11 @@ const App: React.FC = () => {
   const [lastExecutedNonce, setLastExecutedNonce] = useState(-1)
   const [confirmationsRequired, setConfirmationsRequied] = useState(1000000000)
   const [gasAllowance, setGasAllowance] = useState('')
+  const [txs, setTxs] = useState<SafeTransaction[]>([])
 
   const provider = useMemo(() => new SafeAppsSdkProvider(safe, sdk), [safe, sdk])
   const weth = useMemo(() => new ethers.Contract(WETH_ADDRESS, Erc20, provider), [provider])
 
-  const [txs, setTxs] = useState<SafeTransaction[]>([])
   const loadTxs = useCallback(async () => {
     try {
       const safe = await connectedSafe()
@@ -131,72 +143,33 @@ const App: React.FC = () => {
   const availableGasFunds = gasTankState.level.lte(gasTankState.capacity)
     ? gasTankState.level
     : gasTankState.capacity
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <p>
-          Next txs for {connectedAddress}{' '}
-          <Button size="md" color="primary" onClick={loadInfo}>
-            Reload
-          </Button>
-          <br />
-          <br />
-          You pay your transaction fees with WETH from your Safe. For that you need to set an
-          allowance for {REFUNDER_ADDRESS} for WETH ({WETH_ADDRESS}). At least 0.001 WETH for gas
-          fees need to be available to use this Safe App!
-          <br />
-          <br />
-          Max gas fees available: {ethers.utils.formatEther(availableGasFunds)} WETH
-          <br />
-          <br />
-          <TextField
-            label="Amount to wrap"
-            value={wethAmount}
-            onChange={(e) => setWethAmount(e.target.value)}
-          />
-          <br />
-          {ethers.utils.formatEther(gasTankState.level)} WETH{' '}
-          <Button size="md" color="primary" onClick={() => wrapEth(wethAmount)}>
-            Wrap Eth
-          </Button>
-          <br />
-          <TextField
-            label="Max funds to allow for paying gas"
-            value={gasAllowance}
-            onChange={(e) => setGasAllowance(e.target.value)}
-          />
-          <br />
-          {ethers.utils.formatEther(gasTankState.capacity)} WETH{' '}
-          <Button size="md" color="primary" onClick={() => updateGasAllowance(gasAllowance)}>
-            Set Gas Allowance
-          </Button>
-          <br />
-        </p>
-        {txs.map((tx) => (
-          <div>
-            Safe Tx Hash: {tx.safeTxHash}
-            <br />
-            To: {tx.to}
-            <br />
-            Nonce: {tx.nonce}
-            <br />
-            <Button
-              size="md"
-              color="primary"
-              onClick={() => relayTx(tx)}
-              disabled={
-                confirmationsRequired > tx.confirmations.length ||
-                tx.nonce <= lastExecutedNonce ||
-                availableGasFunds.lt(MIN_FUNDS)
-              }
-            >
-              Relay
-            </Button>
-            <hr />
-          </div>
-        ))}
-      </header>
-    </div>
+    <>
+      <Button size="md" color="primary" variant="contained" onClick={loadInfo}>
+        Reload
+      </Button>
+      <Container>
+        <Settings
+          availableGasFunds={availableGasFunds}
+          wethAmount={wethAmount}
+          setWethAmount={setWethAmount}
+          gasTankState={gasTankState}
+          wrapEth={wrapEth}
+          gasAllowance={gasAllowance}
+          setGasAllowance={setGasAllowance}
+          updateGasAllowance={updateGasAllowance}
+        />
+        <Transactions
+          connectedAddress={connectedAddress}
+          txs={txs}
+          confirmationsRequired={confirmationsRequired}
+          lastExecutedNonce={lastExecutedNonce}
+          availableGasFunds={availableGasFunds}
+          relayTx={relayTx}
+        />
+      </Container>
+    </>
   )
 }
 
