@@ -27,13 +27,15 @@
     "web-vitals": "^1.0.1"
   },
   "devDependencies": {
+    "prettier": "^2.2.1",
     "react-app-rewired": "^2.1.6"
   },
   "scripts": {
     "start": "HTTPS=true react-app-rewired start",
     "build": "react-app-rewired build",
     "test": "react-app-rewired test",
-    "deploy": "gh-pages -d build"
+    "deploy": "gh-pages -d build",
+    "format": "prettier --write src/**/*.{js,jsx,ts,tsx,json}"
   },
   "eslintConfig": {
     "extends": [

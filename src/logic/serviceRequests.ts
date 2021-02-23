@@ -1,8 +1,8 @@
-import axios from "axios"
-import { SafeTransaction } from "./safeTransactions"
+import axios from 'axios'
+import { SafeTransaction } from './safeTransactions'
 
 interface SafeInfo {
-  nonce: number,
+  nonce: number
   threshold: number
 }
 
@@ -19,7 +19,10 @@ const getSafeTxsUrl = (network: string, safeAddress: string, nonce: string): str
   return `${safeInfoUrl}/multisig-transactions/?nonce=${nonce}`
 }
 
-export const getNextTxsFromService = async (network: string, safeAddress: string): Promise<{ threshold: number, txs: SafeTransaction[] } > => {
+export const getNextTxsFromService = async (
+  network: string,
+  safeAddress: string
+): Promise<{ threshold: number; txs: SafeTransaction[] }> => {
   const safeInfoUrl = getSafeInfoUrl(network, safeAddress)
   const infoResp = await axios.get<SafeInfo>(safeInfoUrl)
   const safeTxsUrl = getSafeTxsUrl(network, safeAddress, infoResp.data.nonce.toString())
