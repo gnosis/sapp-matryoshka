@@ -15,5 +15,5 @@ export const SEthHashInfo = styled(EthHashInfo)<SEthHashInfoProps>`
 
 export const STextField = styled(TextField)`
   width: 100% !important;
-  margin: 20px 0 5px;
+  margin: 20px 0 5px !important;
 `

@@ -1,10 +1,11 @@
 import { Button, Text } from '@gnosis.pm/safe-react-components'
+import axios from 'axios'
 import { BigNumber } from 'ethers'
-import React from 'react'
+import React, { useCallback, useState } from 'react'
 import styled from 'styled-components'
-import { SafeTransaction } from '../logic/safeTransactions'
+import { encodeSafeTransaction, SafeTransaction } from '../logic/safeTransactions'
 import { SEthHashInfo } from '../styles/common'
-import { MIN_FUNDS } from '../utils/constants'
+import { MIN_FUNDS, SERVICE_URL } from '../utils/constants'
 
 const Wrapper = styled.div`
   border-left: 2px solid #eee;
@@ -42,22 +43,39 @@ const MessageDisabled = styled.div`
 `
 
 interface TransactionsProps {
-  connectedAddress: string
+  safe: any
   txs: SafeTransaction[]
-  confirmationsRequired: number
-  lastExecutedNonce: number
-  availableGasFunds: BigNumber
-  relayTx: Function
+  setTxs: Function
+  confirmationsRequired?: number
+  availableGasFunds?: BigNumber
 }
 
 const Transactions = ({
-  connectedAddress,
+  safe,
   txs,
+  setTxs,
   confirmationsRequired,
-  lastExecutedNonce,
-  availableGasFunds,
-  relayTx
+  availableGasFunds
 }: TransactionsProps) => {
+  const [lastExecutedNonce, setLastExecutedNonce] = useState(-1)
+
+  const relayTx = useCallback(
+    async (tx: SafeTransaction) => {
+      try {
+        if (!safe.safeAddress) return
+        const executeData = encodeSafeTransaction(safe.safeAddress, tx)
+        const txsResp = await axios.post<String>(SERVICE_URL, executeData)
+        console.log(txsResp)
+        setLastExecutedNonce(tx.nonce)
+        setTxs((txs: SafeTransaction[]) => txs.filter((t) => t.safeTxHash !== tx.safeTxHash))
+      } catch (e) {
+        setLastExecutedNonce(tx.nonce - 1)
+        console.error(e)
+      }
+    },
+    [safe]
+  )
+
   return (
     <Wrapper>
       <Line>
@@ -65,75 +83,77 @@ const Transactions = ({
           <b>Next transactions for</b>
         </Text>
         <SEthHashInfo
-          hash={connectedAddress}
+          hash={safe.safeAddress}
           textSize="lg"
           shortenHash={4}
           textColor="primary"
           showEtherscanBtn
         />
       </Line>
-      {txs.map((tx) => (
-        <Transaction key={tx.safeTxHash}>
-          <div>
+      {txs.map((tx) => {
+        const isNotExecutable =
+          (confirmationsRequired && confirmationsRequired > tx.confirmations.length) ||
+          tx.nonce <= lastExecutedNonce ||
+          availableGasFunds?.lt(MIN_FUNDS)
+
+        return (
+          <Transaction key={tx.safeTxHash}>
             <div>
-              <Line>
-                <Text size="lg">
-                  <b>Safe Tx Hash:</b>
-                </Text>
-                <SEthHashInfo
-                  hash={tx.safeTxHash}
-                  textSize="lg"
-                  shortenHash={4}
-                  textColor="primary"
-                  showEtherscanBtn
-                  noMargin
-                />
-              </Line>
-              <Line>
-                <Text size="lg">
-                  <b>To:</b>
-                </Text>
-                <SEthHashInfo
-                  hash={tx.to}
-                  textSize="lg"
-                  shortenHash={4}
-                  textColor="primary"
-                  showEtherscanBtn
-                  noMargin
-                />
-              </Line>
-              <Line>
-                <Text size="lg">
-                  <b>Nonce: </b>
-                  {tx.nonce}
-                </Text>
-              </Line>
+              <div>
+                <Line>
+                  <Text size="lg">
+                    <b>Safe Tx Hash:</b>
+                  </Text>
+                  <SEthHashInfo
+                    hash={tx.safeTxHash}
+                    textSize="lg"
+                    shortenHash={4}
+                    textColor="primary"
+                    showEtherscanBtn
+                    noMargin
+                  />
+                </Line>
+                <Line>
+                  <Text size="lg">
+                    <b>To:</b>
+                  </Text>
+                  <SEthHashInfo
+                    hash={tx.to}
+                    textSize="lg"
+                    shortenHash={4}
+                    textColor="primary"
+                    showEtherscanBtn
+                    noMargin
+                  />
+                </Line>
+                <Line>
+                  <Text size="lg">
+                    <b>Nonce: </b>
+                    {tx.nonce}
+                  </Text>
+                </Line>
+              </div>
+              <Button
+                size="md"
+                color="primary"
+                variant="contained"
+                onClick={() => relayTx(tx)}
+                disabled={isNotExecutable}
+              >
+                Relay
+              </Button>
             </div>
-            <Button
-              size="md"
-              color="primary"
-              variant="contained"
-              onClick={() => relayTx(tx)}
-              disabled={
-                confirmationsRequired > tx.confirmations.length ||
-                tx.nonce <= lastExecutedNonce ||
-                availableGasFunds.lt(MIN_FUNDS)
-              }
-            >
-              Relay
-            </Button>
-          </div>
-          {(confirmationsRequired > tx.confirmations.length ||
-            tx.nonce <= lastExecutedNonce ||
-            availableGasFunds.lt(MIN_FUNDS)) && (
-            <MessageDisabled>
-              <Text size="lg" color="error">
-                This transaction cannot be relayed until it has the required number of confirmations
-              </Text>
-            </MessageDisabled>
-          )}
-        </Transaction>
-      ))}
+            {isNotExecutable && (
+              <MessageDisabled>
+                <Text size="lg" color="error">
+                  This transaction cannot be relayed until it has the required number of
+                  confirmations
+                </Text>
+              </MessageDisabled>
+            )}
+          </Transaction>
+        )
+      })}
     </Wrapper>
   )
 }

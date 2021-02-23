@@ -1,9 +1,10 @@
 import { Button, Text } from '@gnosis.pm/safe-react-components'
 import { BigNumber, ethers } from 'ethers'
-import React from 'react'
+import React, { useCallback, useState } from 'react'
 import styled from 'styled-components'
 import { SEthHashInfo, STextField } from '../styles/common'
 import { REFUNDER_ADDRESS, WETH_ADDRESS } from '../utils/constants'
+import { Erc20Interface } from '../utils/contracts'
 import { GasTank } from './App'
 
 const Wrapper = styled.div`
@@ -20,8 +21,6 @@ const Wrapper = styled.div`
 
 const Description = styled.div`
   margin-bottom: 10px;
-  > p {
-  }
 `
 
 const Line = styled.div`
@@ -40,26 +39,58 @@ const NoFlexLine = styled.div`
 `
 
 interface SettingsProps {
-  availableGasFunds: BigNumber
-  wethAmount: string
-  setWethAmount: Function
+  sdk: any
   gasTankState: GasTank
-  wrapEth: Function
-  gasAllowance: string
-  setGasAllowance: Function
-  updateGasAllowance: Function
+  availableGasFunds?: BigNumber
 }
 
-const Settings = ({
-  availableGasFunds,
-  wethAmount,
-  setWethAmount,
-  gasTankState,
-  wrapEth,
-  gasAllowance,
-  setGasAllowance,
-  updateGasAllowance
-}: SettingsProps) => {
+const Settings = ({ sdk, gasTankState, availableGasFunds }: SettingsProps) => {
+  const [wethAmount, setWethAmount] = useState('')
+  const [gasAllowance, setGasAllowance] = useState('')
+
+  const wrapEth = useCallback(
+    async (amount: string) => {
+      try {
+        const parsedAmount = ethers.utils.parseEther(amount)
+        await sdk.txs.send({
+          txs: [
+            {
+              to: WETH_ADDRESS,
+              value: parsedAmount.toString(),
+              data: '0x'
+            }
+          ]
+        })
+      } catch (e) {
+        console.error(e)
+      }
+    },
+    [sdk]
+  )
+
+  const updateGasAllowance = useCallback(
+    async (allowance: string) => {
+      try {
+        const parsedAllowance = ethers.utils.parseEther(allowance)
+        await sdk.txs.send({
+          txs: [
+            {
+              to: WETH_ADDRESS,
+              value: '0',
+              data: Erc20Interface.encodeFunctionData('approve', [
+                REFUNDER_ADDRESS,
+                parsedAllowance
+              ])
+            }
+          ]
+        })
+      } catch (e) {
+        console.error(e)
+      }
+    },
+    [sdk]
+  )
+
   return (
     <Wrapper>
       <Description>
@@ -92,7 +123,8 @@ const Settings = ({
       </Description>
       <Line>
         <Text size="lg">
-          <b>Max gas fees available:</b> {ethers.utils.formatEther(availableGasFunds)} WETH
+          <b>Max gas fees available:</b>{' '}
+          {availableGasFunds && ethers.utils.formatEther(availableGasFunds)} WETH
         </Text>
       </Line>
       <STextField
