@@ -24,7 +24,7 @@ export interface SafeTransaction {
 interface EncodedTransaction {
   to: string
   method: string
-  methodData: string
+  data: string
 }
 
 const buildSignaturesBytes = (confirmations: SafeConfirmation[]): string => {
@@ -53,7 +53,7 @@ export const encodeSafeTransaction = (
   const encodedTransaction: EncodedTransaction = {
     to: safe,
     method: encodedCall.slice(0, 10),
-    methodData
+    data: methodData
   }
   return encodedTransaction
 }
