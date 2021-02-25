@@ -73,7 +73,7 @@ const Transactions = ({
         console.error(e)
       }
     },
-    [safe]
+    [safe, setTxs]
   )
 
   return (
@@ -91,11 +91,23 @@ const Transactions = ({
         />
       </Line>
       {txs.map((tx) => {
-        const isNotExecutable =
-          (confirmationsRequired && confirmationsRequired > tx.confirmations.length) ||
-          tx.nonce <= lastExecutedNonce ||
-          availableGasFunds?.lt(MIN_FUNDS)
-
+        const hasConfirmations =
+          confirmationsRequired && confirmationsRequired <= tx.confirmations.length
+        const isRightNonce = tx.nonce > lastExecutedNonce
+        const hasGasFunds = availableGasFunds && availableGasFunds.gt(MIN_FUNDS)
+        const isExecutable = hasConfirmations && isRightNonce && hasGasFunds
+        let errorMessage = ''
+        if (!isExecutable) {
+          if (!hasGasFunds) {
+            errorMessage =
+              'This transaction cannot be relayed because there are not enough funds in the gas tank'
+          } else if (!hasConfirmations) {
+            errorMessage =
+              'This transaction cannot be relayed until it has the required number of confirmations'
+          } else if (!isRightNonce) {
+            errorMessage = 'This transaction cannot be relayed because the nonce is invalid'
+          }
+        }
         return (
           <Transaction key={tx.safeTxHash}>
             <div>
@@ -138,16 +150,15 @@ const Transactions = ({
                 color="primary"
                 variant="contained"
                 onClick={() => relayTx(tx)}
-                disabled={isNotExecutable}
+                disabled={!isExecutable}
               >
                 Relay
               </Button>
             </div>
-            {isNotExecutable && (
+            {!isExecutable && (
               <MessageDisabled>
                 <Text size="lg" color="error">
-                  This transaction cannot be relayed until it has the required number of
-                  confirmations
+                  {errorMessage}
                 </Text>
               </MessageDisabled>
             )}
